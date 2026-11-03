@@ -28,6 +28,7 @@
   },
   "files": [
     "dist",
+    "assets",
     "CHANGELOG.md"
   ],
   "scripts": {
