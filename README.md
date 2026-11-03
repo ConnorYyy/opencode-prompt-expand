@@ -1,5 +1,7 @@
 # opencode-prompt-expand
 
+![opencode-prompt-expand featured image](assets/featured.png)
+
 Expand a rough draft in the **OpenCode Desktop** composer into a structured prompt, in place.
 
 The plugin is a small OpenCode Desktop extension: it reads the current draft, asks your own connected model to expand it, writes the result back into the composer, and leaves the send action to you. It never sends a message, never writes session history, and never proxies model credentials.
