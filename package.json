@@ -1,0 +1,63 @@
+{
+  "name": "opencode-prompt-expand",
+  "version": "0.1.0",
+  "description": "Expand rough prompts into structured prompts inside the OpenCode Desktop composer.",
+  "type": "module",
+  "license": "MIT",
+  "author": "opencode-prompt-expand contributors",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "prompt",
+    "prompt-engineering",
+    "desktop"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ConnorYyy/opencode-prompt-expand.git"
+  },
+  "homepage": "https://github.com/ConnorYyy/opencode-prompt-expand#readme",
+  "bugs": {
+    "url": "https://github.com/ConnorYyy/opencode-prompt-expand/issues"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./rpc": "./dist/rpc.js",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "npm run build:server && npm run build:gui",
+    "build:server": "tsc -p tsconfig.server.json",
+    "build:gui": "vite build",
+    "dev": "vite build --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke:gui": "node scripts/smoke-gui.cjs",
+    "verify": "npm run typecheck && npm test && npm run build && npm run smoke:gui",
+    "prepublishOnly": "npm run verify"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "effect": "4.0.6",
+    "solid-js": "1.9.17",
+    "typescript": "^5.9.3",
+    "vite": "7.3.7",
+    "vite-plugin-solid": "2.11.10",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
