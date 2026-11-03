@@ -8,6 +8,10 @@ The plugin is a small OpenCode Desktop extension: it reads the current draft, as
 
 **Status:** `v0.1.0` experimental. The OpenCode Desktop GUI plugin API is still marked experimental upstream; pin the OpenCode version you test against.
 
+[中文说明](README.zh-CN.md)
+
+**Who it is for:** OpenCode Desktop users who write natural-language prompts and want a more structured first draft without leaving the composer. It is not a TUI plugin and it does not send messages for you.
+
 ## What it does
 
 - Turns vague requests into prompts with scope, constraints, output format, and acceptance criteria.
@@ -277,7 +281,48 @@ The repository includes a GitHub Actions workflow that runs `npm ci` and `npm ru
 - `composer.setText()` replaces text and keeps attachments, but it cannot rewrite `@` mention parts. Drafts containing `@path` are skipped.
 - There is no TUI implementation.
 - A slow model can exceed `timeoutMs`; raise it if your provider is slow.
-- The repository is currently private; publish it or grant access before linking it as a public install source.
+
+## FAQ
+
+### Is this a TUI plugin?
+
+No. It uses the OpenCode Desktop GUI composer API. The terminal TUI is not supported.
+
+### Does it send the prompt automatically?
+
+No. The plugin only reads the composer, writes the expanded text back, and leaves Enter to you. It does not create session messages or write conversation history.
+
+### Which model does it use?
+
+By default, `auto` prefers the composer model, then the session model, then the server default, then a cheap chat model. You can also set `composer` or an explicit `provider/model` in settings.
+
+### Why are there no default keyboard shortcuts?
+
+Shortcuts are user-specific and can conflict with host bindings. The commands are registered in **Settings > Shortcuts**; assign the ones you want.
+
+### Why does the new-session page use a bottom button instead of a composer pill?
+
+OpenCode does not expose an official composer API on Home or draft sessions. The bottom button is a best-effort DOM fallback and is marked experimental. Once the first message creates a mounted session, the normal composer pill is used.
+
+### Does it support `@` file mentions?
+
+Drafts containing `@path` references are skipped because rewriting the text can desynchronize mention attachments. Plain email addresses are not treated as mentions.
+
+### Does it store my prompts?
+
+No. Drafts are not persisted by the plugin. The version stack is in memory for the current window only.
+
+### What happens when expansion fails?
+
+The original composer text is left unchanged. The toast includes the server `code` and `message` when available, such as timeout, model, or validation failure.
+
+### Is it free?
+
+The plugin is MIT-licensed. You pay your own model provider for generation; there is no author-operated proxy or telemetry.
+
+### How is it different from a generic prompt optimizer?
+
+It works inside the OpenCode Desktop composer, writes back in place, keeps a small version stack, and can use the model you already selected. It does not require copying prompts into another chat window.
 
 ## Sponsor
 

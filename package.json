@@ -29,7 +29,8 @@
   "files": [
     "dist",
     "assets",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "README.zh-CN.md"
   ],
   "scripts": {
     "build": "npm run build:server && npm run build:gui",
