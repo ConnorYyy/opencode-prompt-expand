@@ -279,6 +279,16 @@ The repository includes a GitHub Actions workflow that runs `npm ci` and `npm ru
 - A slow model can exceed `timeoutMs`; raise it if your provider is slow.
 - The repository is currently private; publish it or grant access before linking it as a public install source.
 
+## Sponsor
+
+If this plugin saves you time, you can support maintenance and testing through Buy Me a Coffee:
+
+[buymeacoffee.com/connory](https://buymeacoffee.com/connory)
+
+[![Buy Me a Coffee QR code](assets/bmc-qr.png)](https://buymeacoffee.com/connory)
+
+Scan the QR code or use the link. Support is optional; the plugin remains MIT-licensed.
+
 ## License
 
 MIT
