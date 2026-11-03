@@ -25,7 +25,7 @@ It does not:
 ## Requirements
 
 - OpenCode Desktop **2.2.5** (the version this release was built and tested against)
-- Node.js **>= 20** and npm, if you build from source
+- Node.js **^20.19.0 or >=22.12.0** and npm, if you build from source
 - A provider/model connected in OpenCode. The plugin uses your own provider account (BYOK).
 
 The TUI is not supported. The GUI composer API used here is only available in OpenCode Desktop.
@@ -36,10 +36,11 @@ The TUI is not supported. The GUI composer API used here is only available in Op
 git clone https://github.com/ConnorYyy/opencode-prompt-expand.git
 cd opencode-prompt-expand
 npm ci
-npm run build
 ```
 
-`npm run build` produces:
+`npm ci` runs the `prepare` script, which builds `dist/`. You can also run `npm run build` explicitly.
+
+The build produces:
 
 ```text
 dist/index.js              server part
@@ -265,7 +266,7 @@ src/
 
 ### CI
 
-The repository includes a GitHub Actions workflow that runs `npm ci` and `npm run verify` on Windows and Ubuntu with Node 22.
+The repository includes a GitHub Actions workflow that runs `npm ci` and `npm run verify` on Windows and Ubuntu with Node 20.19 and 22.12.
 
 ## Limitations
 
