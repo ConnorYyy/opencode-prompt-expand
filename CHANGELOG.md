@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Fix the npm package README so the English README is primary.
+- Move the Chinese README to `docs/README.zh-CN.md`.
+- Update the npm install instructions after the first publish.
+
 ## 0.1.0
 
 - Initial OpenCode Desktop GUI plugin.

@@ -1,12 +1,12 @@
-# opencode-prompt-expand
+﻿# opencode-prompt-expand
 
-[English README](README.md)
+[English README](../README.md)
 
-![opencode-prompt-expand](assets/featured.png)
+![opencode-prompt-expand](../assets/featured.png)
 
 在 **OpenCode Desktop** 的 composer 里，把粗糙草稿扩展成结构化提示词，并原地写回。
 
-**状态：** `v0.1.0` 实验版。OpenCode Desktop 的 GUI 插件 API 仍是 experimental，请锁定你测试的 OpenCode 版本。
+**状态：** `v0.1.1` 实验版，已发布到 npm。OpenCode Desktop 的 GUI 插件 API 仍是 experimental，请锁定你测试的 OpenCode 版本。
 
 ## 适合谁
 
@@ -33,6 +33,15 @@
 - 已在 OpenCode 中连接 provider/model
 
 ## 安装
+
+### 从 npm
+
+```bash
+opencode plugin add opencode-prompt-expand
+opencode plugin list
+```
+
+npm 页面：https://www.npmjs.com/package/opencode-prompt-expand
 
 ### 从 GitHub 构建
 
@@ -74,15 +83,6 @@ Windows 路径示例：
 
 重载 Desktop 窗口，或重启 OpenCode Desktop。  
 检查 **Settings > Extensions > Plugins** 中是否出现 `prompt-expand`。
-
-### npm
-
-npm 包名是 `opencode-prompt-expand`，当前尚未发布。发布后可使用：
-
-```bash
-opencode plugin add opencode-prompt-expand
-opencode plugin list
-```
 
 ## 使用
 
@@ -168,7 +168,7 @@ Home / draft 没有官方 composer API。插件在底部提供 `⚡ Expand Promp
 
 [buymeacoffee.com/connory](https://buymeacoffee.com/connory)
 
-[![Buy Me a Coffee QR code](assets/bmc-qr.png)](https://buymeacoffee.com/connory)
+[![Buy Me a Coffee QR code](../assets/bmc-qr.png)](https://buymeacoffee.com/connory)
 
 赞助是可选的，插件保持 MIT License。
 
