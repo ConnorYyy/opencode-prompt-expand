@@ -8,6 +8,7 @@
 - Enabling the outline opens its tab immediately; the `+` menu entry and command work before the host stores the tab id, and closing the tab keeps it closed.
 - Message lookup uses the timeline's `data-message-id` rows and `message-<id>` anchors; a miss shows a toast instead of guessing.
 - Unrendered messages are located by bisecting the virtualised timeline's scroll offset, loading a page when the search reaches the oldest loaded message.
+- Jumps scroll instantly so the host's follow logic cannot cancel them, and only rows inside the timeline scroller are considered.
 - Add tests for title extraction, outline building, and active-row selection.
 
 ## 0.1.1

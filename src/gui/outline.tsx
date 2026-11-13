@@ -68,7 +68,10 @@ function findMessageRow(id: string, root?: HTMLElement | null): HTMLElement | nu
   if (typeof document === "undefined") return null
 
   const selector = `#message-${cssEscape(id)}, [data-message-id="${cssEscape(id)}"]`
-  const scoped = (root ?? timelineScroller())?.querySelector<HTMLElement>(selector)
+  if (root) return root.querySelector<HTMLElement>(selector)
+
+  const scroller = timelineScroller()
+  const scoped = scroller?.querySelector<HTMLElement>(selector)
   if (scoped) return scoped
 
   return document.querySelector<HTMLElement>(selector)
@@ -137,7 +140,7 @@ function scrollToRow(element: HTMLElement): void {
   const scroller = timeline?.contains(element) ? timeline : (scrollAncestors(element)[0] ?? null)
 
   if (!scroller) {
-    element.scrollIntoView({ block: "center", behavior: "smooth" })
+    element.scrollIntoView({ block: "center", behavior: "auto" })
     return
   }
 
@@ -147,7 +150,17 @@ function scrollToRow(element: HTMLElement): void {
   const inset = sticky?.offsetHeight ?? 0
   const top = Math.max(0, rowBox.top - rootBox.top + scroller.scrollTop - inset - 8)
 
-  scroller.scrollTo({ top, behavior: "smooth" })
+  // Instant rather than smooth: the host's follow logic can cancel a smooth
+  // scroll that is still animating, and a navigation jump should be reliable.
+  scroller.scrollTo({ top, behavior: "auto" })
+
+  requestAnimationFrame(() => {
+    const afterBox = element.getBoundingClientRect()
+    const viewBox = scroller.getBoundingClientRect()
+    if (afterBox.top < viewBox.top || afterBox.bottom > viewBox.bottom) {
+      element.scrollIntoView({ block: "center", behavior: "auto" })
+    }
+  })
 }
 
 function nextFrame(): Promise<void> {
@@ -284,9 +297,10 @@ function OutlineView(props: PanelProps) {
       const range = rendered.length
         ? `${Math.min(...rendered)}-${Math.max(...rendered)}`
         : "none"
-      return `target ${indexOfId()}, rendered ${range}, scroll ${Math.round(scroller.scrollTop)}/${Math.round(
-        scroller.scrollHeight - scroller.clientHeight,
-      )}`
+      const label = String(scroller.className).trim().split(/\s+/)[0] || scroller.tagName
+      return `target ${indexOfId()}, rendered ${range}, scroll ${Math.round(
+        scroller.scrollTop,
+      )}/${Math.round(scroller.scrollHeight - scroller.clientHeight)}, ${label}`
     }
 
     let lower = 0
@@ -342,7 +356,8 @@ function OutlineView(props: PanelProps) {
   const jump = async (id: string) => {
     if (busy()) return
 
-    const row = findMessageRow(id)
+    const scroller = timelineScroller()
+    const row = scroller ? findMessageRow(id, scroller) : findMessageRow(id)
     if (row) {
       scrollToRow(row)
       setActive(id)
