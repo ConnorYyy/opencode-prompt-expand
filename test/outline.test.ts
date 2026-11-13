@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { buildOutline, inferRowIndexes, messageTitle, pickActiveId } from "../src/gui/outline-data.js"
+import {
+  buildOutline,
+  inferRowIndexes,
+  messageTitle,
+  nearestPosition,
+  pickActiveId,
+} from "../src/gui/outline-data.js"
 
 describe("messageTitle", () => {
   it("uses the first non-empty line", () => {
@@ -71,6 +77,22 @@ describe("inferRowIndexes", () => {
 
   it("leaves rows before the first match unmapped", () => {
     expect(inferRowIndexes(["unknown", "m1"], byId)).toEqual([-1, 1])
+  })
+})
+
+describe("nearestPosition", () => {
+  it("prefers the next turn", () => {
+    expect(nearestPosition([6, 10], 8)).toBe(1)
+    expect(nearestPosition([6, 10], 7)).toBe(1)
+  })
+
+  it("falls back to the previous turn past the end", () => {
+    expect(nearestPosition([6, 10], 12)).toBe(1)
+    expect(nearestPosition([], 3)).toBe(-1)
+  })
+
+  it("ignores unmapped rows", () => {
+    expect(nearestPosition([-1, 9], 8)).toBe(1)
   })
 })
 

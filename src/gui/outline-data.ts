@@ -78,6 +78,31 @@ export function inferRowIndexes(
   return result
 }
 
+/** The position of the closest index, preferring the next turn over the previous one. */
+export function nearestPosition(indexes: readonly number[], target: number): number {
+  let after = -1
+  let afterDiff = Number.POSITIVE_INFINITY
+  let before = -1
+  let beforeDiff = Number.POSITIVE_INFINITY
+
+  for (let position = 0; position < indexes.length; position += 1) {
+    const value = indexes[position]
+    if (value === undefined || value < 0) continue
+
+    const diff = value - target
+    if (diff >= 0 && diff < afterDiff) {
+      after = position
+      afterDiff = diff
+    }
+    if (diff < 0 && -diff < beforeDiff) {
+      before = position
+      beforeDiff = -diff
+    }
+  }
+
+  return after >= 0 ? after : before
+}
+
 /** Lists the user turns of a session in order. */
 export function buildOutline(messages: readonly OutlineSource[]): OutlineItem[] {
   const items: OutlineItem[] = []

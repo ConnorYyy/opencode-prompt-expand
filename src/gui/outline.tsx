@@ -11,7 +11,14 @@ import {
 } from "@opencode/plugin/gui"
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import type { definition } from "./definition.js"
-import { buildOutline, inferRowIndexes, pickActiveId, type OutlineItem, type OutlineSource } from "./outline-data.js"
+import {
+  buildOutline,
+  inferRowIndexes,
+  nearestPosition,
+  pickActiveId,
+  type OutlineItem,
+  type OutlineSource,
+} from "./outline-data.js"
 
 type Ctx = SetupContext<typeof definition>
 
@@ -428,6 +435,26 @@ function OutlineView(props: PanelProps) {
       }
     }
 
+    // The target may be an attachment-only turn without a row of its own. If
+    // its neighbours are on screen, land on the closest one instead of searching
+    // the whole timeline.
+    {
+      const target = indexOfId()
+      const rendered = renderedIndices()
+      if (target >= 0 && rendered.length > 0) {
+        const min = Math.min(...rendered)
+        const max = Math.max(...rendered)
+        if (target >= min - 1 && target <= max + 1) {
+          const near = nearestRow(scroller, target, items())
+          if (near) {
+            scrollToRow(near)
+            setActive(id)
+            return { ok: true, detail: "nearest" }
+          }
+        }
+      }
+    }
+
     let lower = 0
     let upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
 
@@ -461,6 +488,15 @@ function OutlineView(props: PanelProps) {
 
       scroller.scrollTo({ top: (lower + upper) / 2, behavior: "auto" })
       await nextFrame()
+    }
+
+    // Attachment-only turns can lack a row of their own; land on the closest
+    // turn in message order so the neighbourhood is visible.
+    const near = nearestRow(scroller, indexOfId(), items())
+    if (near) {
+      scrollToRow(near)
+      setActive(id)
+      return { ok: true, detail: "nearest" }
     }
 
     return { ok: false, detail: detail() }
@@ -573,6 +609,32 @@ function OutlineView(props: PanelProps) {
       </div>
     </div>
   )
+}
+
+/** The closest rendered row in message order: the next turn, else the previous one. */
+function nearestRow(
+  scroller: HTMLElement,
+  index: number,
+  items: readonly OutlineItem[],
+): HTMLElement | null {
+  if (index < 0) return null
+
+  const byId = new Map(items.map((item, position) => [item.id, position]))
+  const rows: HTMLElement[] = []
+  const ids: string[] = []
+  let lastId = ""
+
+  for (const row of scroller.querySelectorAll<HTMLElement>("[data-message-id]")) {
+    const rowId = row.dataset.messageId ?? ""
+    if (!rowId || rowId === lastId) continue
+    lastId = rowId
+    rows.push(row)
+    ids.push(rowId)
+  }
+
+  const indexes = inferRowIndexes(ids, byId)
+  const position = nearestPosition(indexes, index)
+  return position >= 0 ? (rows[position] ?? null) : null
 }
 
 /** A compact report for bug reports: message ids, rendered rows, and the scroller. */
