@@ -63,12 +63,11 @@ function cssEscape(value: string): string {
  * `message-<id>` anchor. Neither is a public API, so both lookups are tried and
  * a miss degrades to a toast instead of a wrong scroll.
  */
-function findMessageRow(id: string): HTMLElement | null {
+function findMessageRow(id: string, root?: HTMLElement | null): HTMLElement | null {
   if (typeof document === "undefined") return null
 
   const selector = `#message-${cssEscape(id)}, [data-message-id="${cssEscape(id)}"]`
-  const scroller = timelineScroller()
-  const scoped = scroller?.querySelector<HTMLElement>(selector)
+  const scoped = (root ?? timelineScroller())?.querySelector<HTMLElement>(selector)
   if (scoped) return scoped
 
   return document.querySelector<HTMLElement>(selector)
@@ -226,7 +225,89 @@ function OutlineView(props: PanelProps) {
     })
   }
 
+  /**
+   * The timeline renders only a window of rows, so an older message can be in
+   * the store without an element. Binary-search the scroll offset: compare the
+   * outline indices of the rendered rows with the target and move to the middle
+   * of the range that is still unchecked. When the search reaches the top and
+   * more history exists, load a page and restart.
+   */
+  const reveal = async (id: string): Promise<boolean> => {
+    const scroller = timelineScroller()
+    if (!scroller) return false
+
+    const message = props.session.server.data.session.message
+    const sessionID = props.session.id
+
+    const indexOfId = () => items().findIndex((item) => item.id === id)
+
+    const renderedIndices = () => {
+      const byId = new Map(items().map((item, index) => [item.id, index]))
+      const indices: number[] = []
+
+      for (const row of scroller.querySelectorAll<HTMLElement>("[data-message-id]")) {
+        const rowId = row.dataset.messageId
+        if (!rowId) continue
+        const index = byId.get(rowId)
+        if (index !== undefined) indices.push(index)
+      }
+
+      return indices
+    }
+
+    let lower = 0
+    let upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+    let pages = 0
+
+    for (let step = 0; step < 18; step += 1) {
+      const row = findMessageRow(id, scroller)
+      if (row) {
+        scrollToRow(row)
+        setActive(id)
+        return true
+      }
+
+      const target = indexOfId()
+      if (target < 0) return false
+
+      const rendered = renderedIndices()
+      if (rendered.length === 0) return false
+
+      const min = Math.min(...rendered)
+      const max = Math.max(...rendered)
+
+      if (target < min) {
+        upper = Math.min(upper, scroller.scrollTop)
+
+        if (upper <= lower) {
+          if (pages >= 8 || !message.more(sessionID)) return false
+          pages += 1
+          await message.loadMore(sessionID, { signal: ctx.signal })
+          await nextFrame()
+          lower = 0
+          upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
+          scroller.scrollTo({ top: 0, behavior: "auto" })
+          await nextFrame()
+          continue
+        }
+      } else if (target > max) {
+        lower = Math.max(lower, scroller.scrollTop)
+        if (lower >= upper) return false
+      } else {
+        // The target index is rendered but no row carries its id.
+        return false
+      }
+
+      scroller.scrollTo({ top: (lower + upper) / 2, behavior: "auto" })
+      await nextFrame()
+    }
+
+    return false
+  }
+
   const jump = async (id: string) => {
+    if (busy()) return
+
     const row = findMessageRow(id)
     if (row) {
       scrollToRow(row)
@@ -234,32 +315,15 @@ function OutlineView(props: PanelProps) {
       return
     }
 
-    if (!hasMore() || busy()) {
-      notMounted()
-      return
-    }
-
     setBusy(true)
     const handle = ctx.toast.show({
-      title: ctx.t("outline.loading"),
+      title: ctx.t("outline.locating"),
       variant: "loading",
       persistent: true,
     })
 
     try {
-      await props.session.server.data.session.message.loadMore(props.session.id, {
-        signal: ctx.signal,
-      })
-      await nextFrame()
-
-      const loaded = findMessageRow(id)
-      if (loaded) {
-        scrollToRow(loaded)
-        setActive(id)
-        return
-      }
-
-      notMounted()
+      if (!(await reveal(id))) notMounted()
     } catch {
       notMounted()
     } finally {

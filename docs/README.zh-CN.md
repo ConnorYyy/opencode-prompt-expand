@@ -174,7 +174,7 @@ Home / draft 没有官方 composer API。插件在底部提供 `⚡ Expand Promp
 - Home / draft 的 DOM 回退不是官方 API
 - `setText()` 不能重写 `@` mention 附件
 - 没有 TUI 实现
-- 会话目录依赖未公开的 `data-message-id` / `message-<id>`，未渲染的消息需要先「加载更早」
+- 会话目录依赖未公开的 `data-message-id` / `message-<id>`；未渲染的消息会通过短暂滚动时间线来定位，比已加载历史更早的消息需要先「加载更早」
 - 慢模型可能超过 `timeoutMs`
 
 ## 赞助

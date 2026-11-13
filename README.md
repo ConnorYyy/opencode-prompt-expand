@@ -297,7 +297,7 @@ The repository includes a GitHub Actions workflow that runs `npm ci` and `npm ru
 - The Home/draft DOM fallback is best-effort and not an official composer API.
 - `composer.setText()` replaces text and keeps attachments, but it cannot rewrite `@` mention parts. Drafts containing `@path` are skipped.
 - There is no TUI implementation.
-- The session outline depends on undocumented timeline attributes (`data-message-id`, `message-<id>`); messages that are not rendered yet need **Load earlier** first.
+- The session outline depends on undocumented timeline attributes (`data-message-id`, `message-<id>`). Unrendered messages are located by briefly scrolling the virtualised timeline; if the message is older than the loaded history, load earlier pages first.
 - A slow model can exceed `timeoutMs`; raise it if your provider is slow.
 
 ## FAQ
