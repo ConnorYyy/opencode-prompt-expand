@@ -393,6 +393,9 @@ function OutlineView(props: PanelProps) {
 
     if (targetIndex >= 0) {
       let direction: 1 | -1 = fromIndex >= 0 && targetIndex > fromIndex ? 1 : -1
+      let lastMin = Number.NaN
+      let lastMax = Number.NaN
+      let stalled = 0
 
       for (let step = 0; step < 80; step += 1) {
         if (locate()) break
@@ -404,18 +407,22 @@ function OutlineView(props: PanelProps) {
 
           if (targetIndex < min) direction = -1
           else if (targetIndex > max) direction = 1
-          else {
-            // The target index is inside the rendered range: give the timeline
-            // a few frames before treating the row as genuinely absent.
-            await nextFrame()
-            await nextFrame()
-            if (locate()) break
-            break
-          }
+
+          // Several commands can land on the same position while the timeline
+          // settles, so stop only when the rendered window stops moving.
+          if (min === lastMin && max === lastMax) stalled += 1
+          else stalled = 0
+          lastMin = min
+          lastMax = max
+          if (stalled > 6) break
         }
 
         if (!hostStep(direction)) break
         stepped += 1
+
+        // The host reveals and scrolls asynchronously; give it time to settle
+        // before deciding the next direction.
+        await nextFrame()
         await nextFrame()
       }
 
