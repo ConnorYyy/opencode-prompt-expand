@@ -362,68 +362,73 @@ function OutlineView(props: PanelProps) {
       )}/${Math.round(scroller.scrollHeight - scroller.clientHeight)}, ${label}`
     }
 
-    const currentIndex = () => {
-      const byId = new Map(items().map((item, index) => [item.id, index]))
-      const line = scroller.getBoundingClientRect().top + 100
-      const rows = [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
-        .map((row) => {
-          const box = row.getBoundingClientRect()
-          return { id: row.dataset.messageId ?? "", top: box.top, bottom: box.bottom }
-        })
-        .filter((row) => row.id)
-        .sort((left, right) => left.top - right.top)
-
-      let activeId: string | undefined
-      for (const row of rows) {
-        if (row.top <= line) activeId = row.id
-        else break
-      }
-
-      const found = activeId ?? rows[0]?.id
-      const index = found ? byId.get(found) : undefined
-      return index ?? -1
-    }
-
     const hostStep = (direction: 1 | -1) =>
       ctx.commands.run(direction < 0 ? "message.previous" : "message.next")
 
     const targetIndex = indexOfId()
-    const fromIndex = currentIndex()
     let stepped = 0
 
-    if (targetIndex >= 0) {
-      let direction: 1 | -1 = fromIndex >= 0 && targetIndex > fromIndex ? 1 : -1
-      let lastMin = Number.NaN
-      let lastMax = Number.NaN
-      let stalled = 0
+    const windowKey = () =>
+      [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
+        .map((row) => row.dataset.messageId ?? "")
+        .join(",")
 
-      for (let step = 0; step < 80; step += 1) {
-        if (locate()) break
+    /**
+     * Runs the host command until the timeline stops moving, so the next phase
+     * starts from a known edge instead of the host's possibly stale active
+     * message (our own scroll does not update it).
+     */
+    const clampTo = async (edge: 1 | -1) => {
+      let lastKey = windowKey()
+      let lastTop = scroller.scrollTop
+      let still = 0
 
-        const rendered = renderedIndices()
-        if (rendered.length > 0) {
-          const min = Math.min(...rendered)
-          const max = Math.max(...rendered)
-
-          if (targetIndex < min) direction = -1
-          else if (targetIndex > max) direction = 1
-
-          // Several commands can land on the same position while the timeline
-          // settles, so stop only when the rendered window stops moving.
-          if (min === lastMin && max === lastMax) stalled += 1
-          else stalled = 0
-          lastMin = min
-          lastMax = max
-          if (stalled > 6) break
-        }
-
-        if (!hostStep(direction)) break
+      for (let step = 0; step < 120; step += 1) {
+        if (locate()) return
+        if (!hostStep(edge)) return
         stepped += 1
+        await nextFrame()
 
-        // The host reveals and scrolls asynchronously; give it time to settle
-        // before deciding the next direction.
-        await nextFrame()
-        await nextFrame()
+        const key = windowKey()
+        const top = scroller.scrollTop
+
+        if (key === lastKey && Math.abs(top - lastTop) < 2) still += 1
+        else still = 0
+
+        lastKey = key
+        lastTop = top
+
+        if (still >= 5) {
+          if (edge === -1 && message.more(sessionID)) {
+            await message.loadMore(sessionID, { signal: ctx.signal })
+            await nextFrame()
+            still = 0
+            continue
+          }
+          return
+        }
+      }
+    }
+
+    if (targetIndex >= 0) {
+      const length = items().length
+      const fromTop = targetIndex
+      const fromBottom = Math.max(0, length - 1 - targetIndex)
+      const startAtTop = fromTop <= fromBottom
+
+      await clampTo(startAtTop ? -1 : 1)
+
+      if (!locate()) {
+        const direction: 1 | -1 = startAtTop ? 1 : -1
+        const distance = startAtTop ? fromTop : fromBottom
+
+        for (let step = 0; step < distance + 8; step += 1) {
+          if (locate()) break
+          if (!hostStep(direction)) break
+          stepped += 1
+          await nextFrame()
+          await nextFrame()
+        }
       }
 
       const row = locate()
