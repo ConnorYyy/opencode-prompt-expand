@@ -91,28 +91,50 @@ function visibleRows(): HTMLElement[] {
   return onScreen.length > 0 ? onScreen : rows
 }
 
-function scrollParent(element: HTMLElement): HTMLElement | null {
+function scrollAncestors(element: HTMLElement): HTMLElement[] {
+  const result: HTMLElement[] = []
   let node = element.parentElement
 
   while (node) {
     const style = getComputedStyle(node)
     const overflow = `${style.overflowY}`
     if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight) {
-      return node
+      result.push(node)
     }
     node = node.parentElement
   }
 
-  return null
+  return result
 }
 
+/**
+ * The timeline scroller is the scrollable ancestor that holds the most message
+ * rows. Taking the nearest one can land on a nested overflow container, such as
+ * a code block inside a single message.
+ */
 function timelineScroller(): HTMLElement | null {
-  const row = visibleRows()[0]
-  return row ? scrollParent(row) : null
+  const candidates = new Set<HTMLElement>()
+  for (const row of visibleRows()) {
+    for (const node of scrollAncestors(row)) candidates.add(node)
+  }
+
+  let best: HTMLElement | null = null
+  let bestRows = 0
+
+  for (const candidate of candidates) {
+    const rows = candidate.querySelectorAll("[data-message-id]").length
+    if (rows > bestRows) {
+      best = candidate
+      bestRows = rows
+    }
+  }
+
+  return best ?? (candidates.size > 0 ? [...candidates][0]! : null)
 }
 
 function scrollToRow(element: HTMLElement): void {
-  const scroller = scrollParent(element)
+  const timeline = timelineScroller()
+  const scroller = timeline?.contains(element) ? timeline : (scrollAncestors(element)[0] ?? null)
 
   if (!scroller) {
     element.scrollIntoView({ block: "center", behavior: "smooth" })
@@ -449,6 +471,11 @@ export function outlineDiagnostics(ctx: Ctx): string {
     scroller.scrollTop = before
   }
 
+  const candidates = new Set<HTMLElement>()
+  for (const row of visibleRows()) {
+    for (const node of scrollAncestors(row)) candidates.add(node)
+  }
+
   return JSON.stringify(
     {
       app: ctx.app.version,
@@ -474,6 +501,13 @@ export function outlineDiagnostics(ctx: Ctx): string {
             canScroll,
           }
         : null,
+      candidates: [...candidates].map((node) => ({
+        tag: node.tagName,
+        class: String(node.className).slice(0, 80),
+        rows: node.querySelectorAll("[data-message-id]").length,
+        scrollTop: Math.round(node.scrollTop),
+        maxScroll: Math.round(node.scrollHeight - node.clientHeight),
+      })),
       anchors: items.slice(0, 3).map((item) => ({
         id: item.id,
         found: Boolean(findMessageRow(item.id, scroller)),
