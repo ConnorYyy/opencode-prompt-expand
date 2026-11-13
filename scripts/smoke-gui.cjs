@@ -13,11 +13,17 @@ const commandToken = { kind: "command" }
 const pillToken = { kind: "pill" }
 const settingsToken = { kind: "settings" }
 const slotToken = { kind: "slot" }
+const panelToken = { kind: "panel" }
+const menuToken = { kind: "menu" }
+const styleToken = { kind: "style" }
 const hostStub = {
   Command: commandToken,
   ComposerPill: pillToken,
   SettingsPage: settingsToken,
   Slot: slotToken,
+  Panel: panelToken,
+  MenuItem: menuToken,
+  Style: styleToken,
   Plugin: { define: (value) => value },
   Store: {
     global: (schema, initial) => ({ scope: "global", schema, initial }),
@@ -95,7 +101,7 @@ const ctx = {
       },
     }),
   },
-  layout: { settings: () => {} },
+  layout: { settings: () => {}, toggle: () => {} },
   add: (token, item) => {
     const value = typeof item === "function" ? item() : item
     registered.push({ token, value })
@@ -108,6 +114,7 @@ const commands = registered.filter((entry) => entry.token === commandToken).map(
 const pill = registered.find((entry) => entry.token === pillToken)?.value
 const settings = registered.find((entry) => entry.token === settingsToken)?.value
 const slot = registered.find((entry) => entry.token === slotToken)?.value
+const panel = registered.find((entry) => entry.token === panelToken)?.value
 
 function command(id) {
   const found = commands.find((entry) => entry.id === id)
@@ -120,12 +127,25 @@ async function tick() {
 }
 
 async function main() {
-  if (commands.length !== 7) throw new Error(`expected 7 commands, got ${commands.length}`)
+  if (commands.length !== 8) throw new Error(`expected 8 commands, got ${commands.length}`)
   if (!pill || pill.id !== "expand") throw new Error("missing composer pill")
   if (!settings || settings.id !== "prompt-expand") throw new Error("missing settings page")
   if (!slot || slot.at !== "window.bottom" || typeof slot.render !== "function") {
     throw new Error("missing draft fallback slot")
   }
+  if (!panel || panel.id !== "outline" || panel.region !== "side") {
+    throw new Error("missing session outline panel")
+  }
+
+  const panelInput = { session: { key: "ses_test", id: "ses_test" }, screen: {}, open: [] }
+  if (panel.list(panelInput).length !== 0) throw new Error("outline should be off by default")
+
+  prefs.outline = true
+  const outlineTabs = panel.list(panelInput)
+  if (outlineTabs.length !== 1 || outlineTabs[0].id !== "outline") {
+    throw new Error("outline panel did not list its tab once enabled")
+  }
+  prefs.outline = false
 
   await command("expand").run()
   await tick()

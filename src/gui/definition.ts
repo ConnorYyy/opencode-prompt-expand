@@ -5,12 +5,14 @@ type Prefs = {
   mode?: "concise" | "full"
   model?: string
   projectContext?: boolean
+  outline?: boolean
 }
 
 const prefsSchema = Schema.Struct({
   mode: Schema.optional(Schema.Union([Schema.Literal("concise"), Schema.Literal("full")])),
   model: Schema.optional(Schema.String),
   projectContext: Schema.optional(Schema.Boolean),
+  outline: Schema.optional(Schema.Boolean),
 }) as unknown as Schema.ConstraintCodec<Prefs, unknown>
 
 export const definition = Plugin.define({
@@ -55,7 +57,22 @@ export const definition = Plugin.define({
       "settings.model.help": "auto, composer, or provider/model; empty uses opencode.jsonc",
       "settings.projectContext": "Project context",
       "settings.projectContext.help": "Read package.json, rule files, and git status.",
+      "settings.outline": "Session outline (experimental)",
+      "settings.outline.help": "List your messages in the right side panel and click one to scroll to it.",
       "settings.note": "No default keyboard shortcut. Bind commands in Settings > Shortcuts.",
+      "outline.title": "Session outline",
+      "outline.menu": "Session outline",
+      "outline.command": "Toggle session outline",
+      "outline.command.desc": "Show or hide the message list for the current session.",
+      "outline.empty": "No messages yet",
+      "outline.more": "Load earlier",
+      "outline.latest": "Latest",
+      "outline.loading": "Loading earlier messages",
+      "outline.notMounted": "Message not loaded",
+      "outline.notMountedDesc": "Load earlier messages, then try again.",
+      "outline.noSession": "No open session",
+      "outline.disabled": "Session outline is off",
+      "outline.disabledDesc": "Turn it on in Settings > Prompt Expand.",
     },
     zh: {
       "command.expand": "扩展提示词",
@@ -97,7 +114,22 @@ export const definition = Plugin.define({
       "settings.model.help": "auto、composer 或 provider/model；留空使用 opencode.jsonc",
       "settings.projectContext": "项目感知",
       "settings.projectContext.help": "读取 package.json、规则文件和 git 状态。",
+      "settings.outline": "会话目录（实验）",
+      "settings.outline.help": "在右侧面板列出你的消息，点击跳转到对应位置。",
       "settings.note": "默认没有快捷键，可在 Settings > Shortcuts 中绑定。",
+      "outline.title": "会话目录",
+      "outline.menu": "会话目录",
+      "outline.command": "切换会话目录",
+      "outline.command.desc": "显示或隐藏当前会话的消息目录。",
+      "outline.empty": "还没有消息",
+      "outline.more": "加载更早",
+      "outline.latest": "最新",
+      "outline.loading": "正在加载更早消息",
+      "outline.notMounted": "消息尚未加载",
+      "outline.notMountedDesc": "请先加载更早消息，再试一次。",
+      "outline.noSession": "没有打开的会话",
+      "outline.disabled": "会话目录未启用",
+      "outline.disabledDesc": "请先在 Settings > Prompt Expand 中启用。",
     },
   },
   stores: {

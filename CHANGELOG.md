@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Add an experimental **session outline** panel: user messages on the right, click to scroll, active entry highlight, load-earlier and jump-to-latest controls.
+- Add the `outline` option and a settings toggle; it is off by default.
+- Add the `prompt-expand.outline` command and a side panel `+` menu entry.
+- Message lookup uses the timeline's `data-message-id` rows and `message-<id>` anchors; a miss shows a toast instead of guessing.
+- Add tests for title extraction, outline building, and active-row selection.
+
 ## 0.1.1
 
 - Fix the npm package README so the English README is primary.

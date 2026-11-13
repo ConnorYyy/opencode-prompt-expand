@@ -1,10 +1,11 @@
 import { Command, type SetupContext } from "@opencode/plugin/gui"
 import type { Controller } from "./controller.js"
 import type { definition } from "./definition.js"
+import type { OutlineApi } from "./outline.js"
 
 type Ctx = SetupContext<typeof definition>
 
-export function registerCommands(ctx: Ctx, controller: Controller): void {
+export function registerCommands(ctx: Ctx, controller: Controller, outline: OutlineApi): void {
   ctx.add(Command, (): Command => ({
     id: "expand",
     get title() {
@@ -87,5 +88,18 @@ export function registerCommands(ctx: Ctx, controller: Controller): void {
     keywords: "prompt expand settings options",
     section: "prompt",
     run: () => ctx.layout.settings("prompt-expand"),
+  }))
+
+  ctx.add(Command, (): Command => ({
+    id: "outline",
+    get title() {
+      return ctx.t("outline.command")
+    },
+    get description() {
+      return ctx.t("outline.command.desc")
+    },
+    keywords: "session outline messages jump navigation",
+    section: "navigation",
+    run: () => outline.toggle(),
   }))
 }

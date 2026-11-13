@@ -4,14 +4,16 @@ import { registerCommands } from "./gui/commands.js"
 import { createController } from "./gui/controller.js"
 import { definition } from "./gui/definition.js"
 import { createDraftComposer, DRAFT_KEY } from "./gui/draft.js"
+import { registerOutline } from "./gui/outline.js"
 import { createPill } from "./gui/pill.js"
 import { createSettingsPage } from "./gui/settings.js"
 
 const setup: Plugin.Setup<typeof definition> = (ctx) => {
   const draft = createDraftComposer()
   const controller = createController(ctx, draft)
+  const outline = registerOutline(ctx)
 
-  registerCommands(ctx, controller)
+  registerCommands(ctx, controller, outline)
   ctx.add(ComposerPill, createPill(ctx, controller))
   ctx.add(SettingsPage, createSettingsPage(ctx))
 

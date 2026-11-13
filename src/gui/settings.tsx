@@ -89,6 +89,23 @@ function Settings() {
         <span style={help}>{ctx.t("settings.projectContext.help")}</span>
       </div>
 
+      <div style={row}>
+        <label style={{ ...label, display: "flex", "align-items": "center", gap: "8px" }}>
+          <input
+            type="checkbox"
+            checked={prefs.value.outline ?? false}
+            onChange={(event) => {
+              const enabled = event.currentTarget.checked
+              prefs.update((draft) => {
+                draft.outline = enabled
+              })
+            }}
+          />
+          {ctx.t("settings.outline")}
+        </label>
+        <span style={help}>{ctx.t("settings.outline.help")}</span>
+      </div>
+
       <p style={help}>{ctx.t("settings.note")}</p>
     </div>
   )
