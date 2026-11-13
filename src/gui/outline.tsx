@@ -64,17 +64,44 @@ function cssEscape(value: string): string {
  * `message-<id>` anchor. Neither is a public API, so both lookups are tried and
  * a miss degrades to a toast instead of a wrong scroll.
  */
-function findMessageRow(id: string, root?: HTMLElement | null): HTMLElement | null {
+function normalizeText(value: string): string {
+  return value.replace(/\s+/g, "").toLowerCase()
+}
+
+/**
+ * The host renders every timeline row with `data-message-id` and gives it the
+ * `message-<id>` anchor. Neither is a public API, and a message can carry an id
+ * that differs from the row's, so a title match is the last resort.
+ */
+function findMessageRow(
+  id: string,
+  root?: HTMLElement | null,
+  title?: string,
+): HTMLElement | null {
   if (typeof document === "undefined") return null
 
   const selector = `#message-${cssEscape(id)}, [data-message-id="${cssEscape(id)}"]`
-  if (root) return root.querySelector<HTMLElement>(selector)
+  const scope = root ?? timelineScroller()
 
-  const scroller = timelineScroller()
-  const scoped = scroller?.querySelector<HTMLElement>(selector)
-  if (scoped) return scoped
+  if (scope) {
+    const found = scope.querySelector<HTMLElement>(selector)
+    if (found) return found
+  } else {
+    const found = document.querySelector<HTMLElement>(selector)
+    if (found) return found
+  }
 
-  return document.querySelector<HTMLElement>(selector)
+  if (!title) return null
+
+  const probe = normalizeText(title).slice(0, 12)
+  if (probe.length < 4) return null
+
+  const candidates = scope ?? document
+  for (const row of candidates.querySelectorAll<HTMLElement>("[data-message-id]")) {
+    if (normalizeText(row.innerText).includes(probe)) return row
+  }
+
+  return null
 }
 
 function visibleRows(): HTMLElement[] {
@@ -276,6 +303,8 @@ function OutlineView(props: PanelProps) {
     const sessionID = props.session.id
 
     const indexOfId = () => items().findIndex((item) => item.id === id)
+  const titleOf = () => items().find((item) => item.id === id)?.title ?? ""
+  const title = titleOf()
 
     const renderedIndices = () => {
       const byId = new Map(items().map((item, index) => [item.id, index]))
@@ -331,24 +360,39 @@ function OutlineView(props: PanelProps) {
     const fromIndex = currentIndex()
     let stepped = 0
 
-    if (targetIndex >= 0 && fromIndex >= 0 && targetIndex !== fromIndex) {
-      const direction = targetIndex > fromIndex ? 1 : -1
-      const distance = Math.abs(targetIndex - fromIndex)
+    if (targetIndex >= 0) {
+      let direction: 1 | -1 = fromIndex >= 0 && targetIndex > fromIndex ? 1 : -1
 
-      if (distance <= 80) {
-        for (let step = 0; step < distance; step += 1) {
-          if (findMessageRow(id, scroller)) break
-          if (!hostStep(direction)) break
-          stepped += 1
-          await nextFrame()
+      for (let step = 0; step < 80; step += 1) {
+        if (findMessageRow(id, scroller, title)) break
+
+        const rendered = renderedIndices()
+        if (rendered.length > 0) {
+          const min = Math.min(...rendered)
+          const max = Math.max(...rendered)
+
+          if (targetIndex < min) direction = -1
+          else if (targetIndex > max) direction = 1
+          else {
+            // The target index is inside the rendered range: give the timeline
+            // a few frames before treating the row as genuinely absent.
+            await nextFrame()
+            await nextFrame()
+            if (findMessageRow(id, scroller, title)) break
+            break
+          }
         }
 
-        const row = findMessageRow(id, scroller)
-        if (row) {
-          scrollToRow(row)
-          setActive(id)
-          return { ok: true, detail: "" }
-        }
+        if (!hostStep(direction)) break
+        stepped += 1
+        await nextFrame()
+      }
+
+      const row = findMessageRow(id, scroller, title)
+      if (row) {
+        scrollToRow(row)
+        setActive(id)
+        return { ok: true, detail: "" }
       }
     }
 
@@ -357,7 +401,7 @@ function OutlineView(props: PanelProps) {
     let pages = 0
 
     for (let step = 0; step < 18; step += 1) {
-      const row = findMessageRow(id, scroller)
+      const row = findMessageRow(id, scroller, title)
       if (row) {
         scrollToRow(row)
         setActive(id)
@@ -406,7 +450,8 @@ function OutlineView(props: PanelProps) {
     if (busy()) return
 
     const scroller = timelineScroller()
-    const row = scroller ? findMessageRow(id, scroller) : findMessageRow(id)
+    const title = items().find((item) => item.id === id)?.title
+    const row = scroller ? findMessageRow(id, scroller, title) : findMessageRow(id, undefined, title)
     if (row) {
       scrollToRow(row)
       setActive(id)
