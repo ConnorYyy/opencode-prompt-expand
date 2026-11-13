@@ -77,6 +77,9 @@ export const definition = Plugin.define({
       "settings.outline.on": "Session outline enabled",
       "settings.outline.onDesc": "Open it from the + menu of the side panel.",
       "settings.outline.openedDesc": "Opened in the side panel.",
+      "outline.diagnostics": "Copy session outline diagnostics",
+      "outline.diagnostics.copied": "Diagnostics copied",
+      "outline.diagnostics.copiedDesc": "Paste it into the chat to report a jump failure.",
     },
     zh: {
       "command.expand": "扩展提示词",
@@ -138,6 +141,9 @@ export const definition = Plugin.define({
       "settings.outline.on": "会话目录已启用",
       "settings.outline.onDesc": "回到会话后，从右侧面板的 + 菜单打开。",
       "settings.outline.openedDesc": "已在右侧面板打开。",
+      "outline.diagnostics": "复制会话目录诊断信息",
+      "outline.diagnostics.copied": "诊断信息已复制",
+      "outline.diagnostics.copiedDesc": "粘贴到对话里，用于排查跳转失败。",
     },
   },
   stores: {

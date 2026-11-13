@@ -1,4 +1,5 @@
 import {
+  Command,
   MenuItem,
   Panel,
   Style,
@@ -217,10 +218,11 @@ function OutlineView(props: PanelProps) {
     if (retryFrame) cancelAnimationFrame(retryFrame)
   })
 
-  const notMounted = () => {
+  const notMounted = (detail?: string) => {
+    const description = [ctx.t("outline.notMountedDesc"), detail].filter(Boolean).join(" ")
     ctx.toast.show({
       title: ctx.t("outline.notMounted"),
-      description: ctx.t("outline.notMountedDesc"),
+      description,
       variant: "default",
     })
   }
@@ -232,9 +234,9 @@ function OutlineView(props: PanelProps) {
    * of the range that is still unchecked. When the search reaches the top and
    * more history exists, load a page and restart.
    */
-  const reveal = async (id: string): Promise<boolean> => {
+  const reveal = async (id: string): Promise<{ ok: boolean; detail: string }> => {
     const scroller = timelineScroller()
-    if (!scroller) return false
+    if (!scroller) return { ok: false, detail: "no scroller" }
 
     const message = props.session.server.data.session.message
     const sessionID = props.session.id
@@ -255,6 +257,16 @@ function OutlineView(props: PanelProps) {
       return indices
     }
 
+    const detail = () => {
+      const rendered = renderedIndices()
+      const range = rendered.length
+        ? `${Math.min(...rendered)}-${Math.max(...rendered)}`
+        : "none"
+      return `target ${indexOfId()}, rendered ${range}, scroll ${Math.round(scroller.scrollTop)}/${Math.round(
+        scroller.scrollHeight - scroller.clientHeight,
+      )}`
+    }
+
     let lower = 0
     let upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
     let pages = 0
@@ -264,14 +276,14 @@ function OutlineView(props: PanelProps) {
       if (row) {
         scrollToRow(row)
         setActive(id)
-        return true
+        return { ok: true, detail: "" }
       }
 
       const target = indexOfId()
-      if (target < 0) return false
+      if (target < 0) return { ok: false, detail: "not in outline" }
 
       const rendered = renderedIndices()
-      if (rendered.length === 0) return false
+      if (rendered.length === 0) return { ok: false, detail: detail() }
 
       const min = Math.min(...rendered)
       const max = Math.max(...rendered)
@@ -280,7 +292,7 @@ function OutlineView(props: PanelProps) {
         upper = Math.min(upper, scroller.scrollTop)
 
         if (upper <= lower) {
-          if (pages >= 8 || !message.more(sessionID)) return false
+          if (pages >= 8 || !message.more(sessionID)) return { ok: false, detail: detail() }
           pages += 1
           await message.loadMore(sessionID, { signal: ctx.signal })
           await nextFrame()
@@ -292,17 +304,17 @@ function OutlineView(props: PanelProps) {
         }
       } else if (target > max) {
         lower = Math.max(lower, scroller.scrollTop)
-        if (lower >= upper) return false
+        if (lower >= upper) return { ok: false, detail: detail() }
       } else {
         // The target index is rendered but no row carries its id.
-        return false
+        return { ok: false, detail: detail() }
       }
 
       scroller.scrollTo({ top: (lower + upper) / 2, behavior: "auto" })
       await nextFrame()
     }
 
-    return false
+    return { ok: false, detail: detail() }
   }
 
   const jump = async (id: string) => {
@@ -323,9 +335,10 @@ function OutlineView(props: PanelProps) {
     })
 
     try {
-      if (!(await reveal(id))) notMounted()
+      const result = await reveal(id)
+      if (!result.ok) notMounted(result.detail)
     } catch {
-      notMounted()
+      notMounted("exception")
     } finally {
       handle.dismiss()
       setBusy(false)
@@ -408,6 +421,69 @@ function OutlineView(props: PanelProps) {
   )
 }
 
+/** A compact report for bug reports: message ids, rendered rows, and the scroller. */
+export function outlineDiagnostics(ctx: Ctx): string {
+  const session = ctx.sessions.current()
+  if (!session) return "no routed session"
+
+  const messages = session.server.data.session.message.list(
+    session.id,
+  ) as unknown as readonly OutlineSource[]
+  const items = buildOutline(messages)
+  const scroller = timelineScroller()
+  const rows = [...document.querySelectorAll<HTMLElement>("[data-message-id]")]
+  const ids = rows.map((row) => row.dataset.messageId ?? "").filter(Boolean)
+  const known = new Set(items.map((item) => item.id))
+  const matched = ids.filter((id) => known.has(id))
+  const scoped = scroller
+    ? [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
+        .map((row) => row.dataset.messageId ?? "")
+        .filter(Boolean)
+    : []
+
+  let canScroll = false
+  if (scroller) {
+    const before = scroller.scrollTop
+    scroller.scrollTop = Math.max(0, before - 40)
+    canScroll = scroller.scrollTop !== before
+    scroller.scrollTop = before
+  }
+
+  return JSON.stringify(
+    {
+      app: ctx.app.version,
+      platform: ctx.app.platform,
+      session: session.id,
+      outlineCount: items.length,
+      outlineSample: items.slice(0, 3).map((item) => item.id),
+      dom: {
+        rows: rows.length,
+        matched: matched.length,
+        first: ids.slice(0, 3),
+        last: ids.slice(-3),
+      },
+      scroller: scroller
+        ? {
+            tag: scroller.tagName,
+            class: String(scroller.className).slice(0, 120),
+            overflowY: getComputedStyle(scroller).overflowY,
+            scrollTop: Math.round(scroller.scrollTop),
+            scrollHeight: scroller.scrollHeight,
+            clientHeight: scroller.clientHeight,
+            scopedRows: scoped.length,
+            canScroll,
+          }
+        : null,
+      anchors: items.slice(0, 3).map((item) => ({
+        id: item.id,
+        found: Boolean(findMessageRow(item.id, scroller)),
+      })),
+    },
+    null,
+    2,
+  )
+}
+
 export function registerOutline(ctx: Ctx): OutlineApi {
   const enabled = () => ctx.stores.prefs.value.outline ?? ctx.options.outline === true
 
@@ -473,6 +549,32 @@ export function registerOutline(ctx: Ctx): OutlineApi {
     },
     icon: "bullet-list",
     run: open,
+  })
+
+  ctx.add(Command, {
+    id: "outline.diagnostics",
+    get title() {
+      return ctx.t("outline.diagnostics")
+    },
+    keywords: "outline session diagnostics debug copy",
+    section: "navigation",
+    run: async () => {
+      const text = outlineDiagnostics(ctx)
+      try {
+        await ctx.system.copy(text)
+        ctx.toast.show({
+          title: ctx.t("outline.diagnostics.copied"),
+          description: ctx.t("outline.diagnostics.copiedDesc"),
+          variant: "success",
+        })
+      } catch {
+        ctx.toast.show({
+          title: ctx.t("outline.diagnostics"),
+          description: text.slice(0, 300),
+          variant: "error",
+        })
+      }
+    },
   })
 
   ctx.add(Panel, {

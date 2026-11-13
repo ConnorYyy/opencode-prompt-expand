@@ -107,6 +107,8 @@ const ctx = {
     open: () => {},
     state: () => "closed",
   },
+  app: { version: "test", platform: "desktop" },
+  system: { copy: async () => {} },
   add: (token, item) => {
     const value = typeof item === "function" ? item() : item
     registered.push({ token, value })
@@ -132,7 +134,7 @@ async function tick() {
 }
 
 async function main() {
-  if (commands.length !== 8) throw new Error(`expected 8 commands, got ${commands.length}`)
+  if (commands.length !== 9) throw new Error(`expected 9 commands, got ${commands.length}`)
   if (!pill || pill.id !== "expand") throw new Error("missing composer pill")
   if (!settings || settings.id !== "prompt-expand") throw new Error("missing settings page")
   if (!slot || slot.at !== "window.bottom" || typeof slot.render !== "function") {
