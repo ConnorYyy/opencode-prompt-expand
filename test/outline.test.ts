@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildOutline, messageTitle, pickActiveId } from "../src/gui/outline-data.js"
+import { buildOutline, inferRowIndexes, messageTitle, pickActiveId } from "../src/gui/outline-data.js"
 
 describe("messageTitle", () => {
   it("uses the first non-empty line", () => {
@@ -48,8 +48,33 @@ describe("buildOutline", () => {
   })
 })
 
-describe("pickActiveId", () => {
-  const rows = [
+describe("inferRowIndexes", () => {
+  const byId = new Map([
+    ["m0", 0],
+    ["m1", 1],
+    ["m2", 2],
+    ["m4", 4],
+    ["m5", 5],
+  ])
+
+  it("keeps matched indexes", () => {
+    expect(inferRowIndexes(["m0", "m1", "m2"], byId)).toEqual([0, 1, 2])
+  })
+
+  it("fills a row whose id is not in the store", () => {
+    expect(inferRowIndexes(["m2", "row-unknown", "m4"], byId)).toEqual([2, 3, 4])
+  })
+
+  it("skips duplicate wrapper rows", () => {
+    expect(inferRowIndexes(["m2", "m2", "row-unknown", "m4"], byId)).toEqual([2, 3, 4])
+  })
+
+  it("leaves rows before the first match unmapped", () => {
+    expect(inferRowIndexes(["unknown", "m1"], byId)).toEqual([-1, 1])
+  })
+})
+
+describe("pickActiveId", () => {  const rows = [
     { id: "a", top: 0, bottom: 40 },
     { id: "b", top: 40, bottom: 80 },
     { id: "c", top: 80, bottom: 120 },

@@ -11,7 +11,7 @@ import {
 } from "@opencode/plugin/gui"
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import type { definition } from "./definition.js"
-import { buildOutline, pickActiveId, type OutlineSource } from "./outline-data.js"
+import { buildOutline, inferRowIndexes, pickActiveId, type OutlineItem, type OutlineSource } from "./outline-data.js"
 
 type Ctx = SetupContext<typeof definition>
 
@@ -66,6 +66,35 @@ function cssEscape(value: string): string {
  */
 function normalizeText(value: string): string {
   return value.replace(/\s+/g, "").toLowerCase()
+}
+
+/**
+ * Rows are in visual order, so an unmatched row (a delivered message whose row
+ * id differs from the store id, common for queued or attachment-only prompts)
+ * can be inferred from its matched neighbours.
+ */
+function rowByIndex(
+  scroller: HTMLElement,
+  index: number,
+  items: readonly OutlineItem[],
+): HTMLElement | null {
+  if (index < 0) return null
+
+  const byId = new Map(items.map((item, position) => [item.id, position]))
+  const rows: HTMLElement[] = []
+  const ids: string[] = []
+  let lastId = ""
+
+  for (const row of scroller.querySelectorAll<HTMLElement>("[data-message-id]")) {
+    const rowId = row.dataset.messageId ?? ""
+    if (!rowId || rowId === lastId) continue
+    lastId = rowId
+    rows.push(row)
+    ids.push(rowId)
+  }
+
+  const position = inferRowIndexes(ids, byId).indexOf(index)
+  return position >= 0 ? (rows[position] ?? null) : null
 }
 
 /**
@@ -305,6 +334,8 @@ function OutlineView(props: PanelProps) {
     const indexOfId = () => items().findIndex((item) => item.id === id)
   const titleOf = () => items().find((item) => item.id === id)?.title ?? ""
   const title = titleOf()
+  const locate = () =>
+    findMessageRow(id, scroller, title) ?? rowByIndex(scroller, indexOfId(), items())
 
     const renderedIndices = () => {
       const byId = new Map(items().map((item, index) => [item.id, index]))
@@ -364,7 +395,7 @@ function OutlineView(props: PanelProps) {
       let direction: 1 | -1 = fromIndex >= 0 && targetIndex > fromIndex ? 1 : -1
 
       for (let step = 0; step < 80; step += 1) {
-        if (findMessageRow(id, scroller, title)) break
+        if (locate()) break
 
         const rendered = renderedIndices()
         if (rendered.length > 0) {
@@ -378,7 +409,7 @@ function OutlineView(props: PanelProps) {
             // a few frames before treating the row as genuinely absent.
             await nextFrame()
             await nextFrame()
-            if (findMessageRow(id, scroller, title)) break
+            if (locate()) break
             break
           }
         }
@@ -388,7 +419,7 @@ function OutlineView(props: PanelProps) {
         await nextFrame()
       }
 
-      const row = findMessageRow(id, scroller, title)
+      const row = locate()
       if (row) {
         scrollToRow(row)
         setActive(id)
@@ -401,7 +432,7 @@ function OutlineView(props: PanelProps) {
     let pages = 0
 
     for (let step = 0; step < 18; step += 1) {
-      const row = findMessageRow(id, scroller, title)
+      const row = locate()
       if (row) {
         scrollToRow(row)
         setActive(id)
@@ -451,7 +482,10 @@ function OutlineView(props: PanelProps) {
 
     const scroller = timelineScroller()
     const title = items().find((item) => item.id === id)?.title
-    const row = scroller ? findMessageRow(id, scroller, title) : findMessageRow(id, undefined, title)
+    const index = items().findIndex((item) => item.id === id)
+    const row =
+      (scroller ? findMessageRow(id, scroller, title) : findMessageRow(id, undefined, title)) ??
+      (scroller ? rowByIndex(scroller, index, items()) : null)
     if (row) {
       scrollToRow(row)
       setActive(id)

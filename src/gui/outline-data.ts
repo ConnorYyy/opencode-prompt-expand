@@ -52,6 +52,32 @@ export function messageTitle(text: string): string {
   return `${chars.slice(0, MAX_TITLE).join("").trimEnd()}…`
 }
 
+/**
+ * Maps rendered row ids to outline indexes, inferring a gap from the matched
+ * neighbours. The timeline can render a row whose `data-message-id` differs
+ * from the store id, which otherwise leaves a hole in the mapping.
+ */
+export function inferRowIndexes(
+  rowIds: readonly string[],
+  byId: ReadonlyMap<string, number>,
+): number[] {
+  const result: number[] = []
+  let expected = -1
+  let lastId = ""
+
+  for (const rowId of rowIds) {
+    if (!rowId || rowId === lastId) continue
+    lastId = rowId
+
+    const mapped = byId.get(rowId)
+    const inferred = mapped ?? (expected >= 0 ? expected + 1 : -1)
+    result.push(inferred)
+    expected = inferred
+  }
+
+  return result
+}
+
 /** Lists the user turns of a session in order. */
 export function buildOutline(messages: readonly OutlineSource[]): OutlineItem[] {
   const items: OutlineItem[] = []
