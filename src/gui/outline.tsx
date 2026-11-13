@@ -264,10 +264,9 @@ function OutlineView(props: PanelProps) {
 
   /**
    * The timeline renders only a window of rows, so an older message can be in
-   * the store without an element. Binary-search the scroll offset: compare the
-   * outline indices of the rendered rows with the target and move to the middle
-   * of the range that is still unchecked. When the search reaches the top and
-   * more history exists, load a page and restart.
+   * the store without an element. Prefer the app's own "previous/next message"
+   * commands, which unpin auto-follow and reveal the target for us; fall back to
+   * bisecting the virtualised scroll offset when those commands are unavailable.
    */
   const reveal = async (id: string): Promise<{ ok: boolean; detail: string }> => {
     const scroller = timelineScroller()
@@ -298,9 +297,59 @@ function OutlineView(props: PanelProps) {
         ? `${Math.min(...rendered)}-${Math.max(...rendered)}`
         : "none"
       const label = String(scroller.className).trim().split(/\s+/)[0] || scroller.tagName
-      return `target ${indexOfId()}, rendered ${range}, scroll ${Math.round(
+      return `target ${indexOfId()}, rendered ${range}, steps ${stepped}, scroll ${Math.round(
         scroller.scrollTop,
       )}/${Math.round(scroller.scrollHeight - scroller.clientHeight)}, ${label}`
+    }
+
+    const currentIndex = () => {
+      const byId = new Map(items().map((item, index) => [item.id, index]))
+      const line = scroller.getBoundingClientRect().top + 100
+      const rows = [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
+        .map((row) => {
+          const box = row.getBoundingClientRect()
+          return { id: row.dataset.messageId ?? "", top: box.top, bottom: box.bottom }
+        })
+        .filter((row) => row.id)
+        .sort((left, right) => left.top - right.top)
+
+      let activeId: string | undefined
+      for (const row of rows) {
+        if (row.top <= line) activeId = row.id
+        else break
+      }
+
+      const found = activeId ?? rows[0]?.id
+      const index = found ? byId.get(found) : undefined
+      return index ?? -1
+    }
+
+    const hostStep = (direction: 1 | -1) =>
+      ctx.commands.run(direction < 0 ? "message.previous" : "message.next")
+
+    const targetIndex = indexOfId()
+    const fromIndex = currentIndex()
+    let stepped = 0
+
+    if (targetIndex >= 0 && fromIndex >= 0 && targetIndex !== fromIndex) {
+      const direction = targetIndex > fromIndex ? 1 : -1
+      const distance = Math.abs(targetIndex - fromIndex)
+
+      if (distance <= 80) {
+        for (let step = 0; step < distance; step += 1) {
+          if (findMessageRow(id, scroller)) break
+          if (!hostStep(direction)) break
+          stepped += 1
+          await nextFrame()
+        }
+
+        const row = findMessageRow(id, scroller)
+        if (row) {
+          scrollToRow(row)
+          setActive(id)
+          return { ok: true, detail: "" }
+        }
+      }
     }
 
     let lower = 0
