@@ -328,11 +328,8 @@ function OutlineView(props: PanelProps) {
     const scroller = timelineScroller()
     if (!scroller) return { ok: false, detail: "no scroller" }
 
-    const message = props.session.server.data.session.message
-    const sessionID = props.session.id
-
     const indexOfId = () => items().findIndex((item) => item.id === id)
-  const titleOf = () => items().find((item) => item.id === id)?.title ?? ""
+    const titleOf = () => items().find((item) => item.id === id)?.title ?? ""
   const title = titleOf()
   const locate = () =>
     findMessageRow(id, scroller, title) ?? rowByIndex(scroller, indexOfId(), items())
@@ -398,15 +395,7 @@ function OutlineView(props: PanelProps) {
         lastKey = key
         lastTop = top
 
-        if (still >= 5) {
-          if (edge === -1 && message.more(sessionID)) {
-            await message.loadMore(sessionID, { signal: ctx.signal })
-            await nextFrame()
-            still = 0
-            continue
-          }
-          return
-        }
+        if (still >= 5) return
       }
     }
 
@@ -441,7 +430,6 @@ function OutlineView(props: PanelProps) {
 
     let lower = 0
     let upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
-    let pages = 0
 
     for (let step = 0; step < 18; step += 1) {
       const row = locate()
@@ -462,23 +450,12 @@ function OutlineView(props: PanelProps) {
 
       if (target < min) {
         upper = Math.min(upper, scroller.scrollTop)
-
-        if (upper <= lower) {
-          if (pages >= 8 || !message.more(sessionID)) return { ok: false, detail: detail() }
-          pages += 1
-          await message.loadMore(sessionID, { signal: ctx.signal })
-          await nextFrame()
-          lower = 0
-          upper = Math.max(0, scroller.scrollHeight - scroller.clientHeight)
-          scroller.scrollTo({ top: 0, behavior: "auto" })
-          await nextFrame()
-          continue
-        }
+        if (upper <= lower) return { ok: false, detail: detail() }
       } else if (target > max) {
         lower = Math.max(lower, scroller.scrollTop)
         if (lower >= upper) return { ok: false, detail: detail() }
       } else {
-        // The target index is rendered but no row carries its id.
+        // The target index is rendered but no row matches it.
         return { ok: false, detail: detail() }
       }
 
