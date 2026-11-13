@@ -5,6 +5,7 @@ import {
   usePlugin,
   type PanelProps,
   type PanelTab,
+  type SessionRef,
   type SetupContext,
 } from "@opencode/plugin/gui"
 import { For, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
@@ -16,9 +17,25 @@ type Ctx = SetupContext<typeof definition>
 export type OutlineApi = {
   enabled(): boolean
   toggle(): void
+  open(): void
 }
 
 const PANEL_ID = "outline"
+
+// The host stores a tab id only for a tab its panel lists, and list() is the
+// source of truth. Remember requested opens so the first one works before the
+// id is stored; closing a tab forgets it. Keyed by plugin and session.
+const requested = new Set<string>()
+
+function requestKey(ctx: Ctx, session: { key: string }): string {
+  return `${ctx.id}:${session.key}`
+}
+
+/** Opens the outline tab for a session, regardless of where the host stores it. */
+export function requestOutlineOpen(ctx: Ctx, session: SessionRef): void {
+  requested.add(requestKey(ctx, session))
+  ctx.layout.open(`${ctx.id}:${PANEL_ID}`, session, { tab: "select" })
+}
 
 const CSS = `
 .okpe-outline{display:flex;flex-direction:column;height:100%;font-size:12px}
@@ -348,7 +365,28 @@ export function registerOutline(ctx: Ctx): OutlineApi {
       return
     }
 
-    ctx.layout.toggle(`${ctx.id}:${PANEL_ID}`, current)
+    const key = `${ctx.id}:${PANEL_ID}`
+    if (ctx.layout.state(key, current) === "closed") requested.add(requestKey(ctx, current))
+    ctx.layout.toggle(key, current)
+  }
+
+  const open = () => {
+    const current = session()
+    if (!current) {
+      ctx.toast.show({ title: ctx.t("outline.noSession"), variant: "default" })
+      return
+    }
+
+    if (!enabled()) {
+      ctx.toast.show({
+        title: ctx.t("outline.disabled"),
+        description: ctx.t("outline.disabledDesc"),
+        variant: "default",
+      })
+      return
+    }
+
+    requestOutlineOpen(ctx, current)
   }
 
   const tab: PanelTab = {
@@ -361,17 +399,17 @@ export function registerOutline(ctx: Ctx): OutlineApi {
 
   ctx.add(Style, CSS)
 
-  ctx.add(MenuItem, () =>
-    enabled()
-      ? {
-          menu: "session.panel" as const,
-          id: PANEL_ID,
-          title: ctx.t("outline.menu"),
-          icon: "bullet-list" as const,
-          run: toggle,
-        }
-      : undefined,
-  )
+  // Always present: the registry keeps the item the plugin contributed at
+  // setup, so a conditional item would never appear after enabling the panel.
+  ctx.add(MenuItem, {
+    menu: "session.panel",
+    id: PANEL_ID,
+    get title() {
+      return ctx.t("outline.menu")
+    },
+    icon: "bullet-list",
+    run: open,
+  })
 
   ctx.add(Panel, {
     id: PANEL_ID,
@@ -384,10 +422,17 @@ export function registerOutline(ctx: Ctx): OutlineApi {
       icon: "bullet-list",
       order: 20,
     },
-    list: () => (enabled() ? [tab] : []),
+    list: (input) =>
+      enabled() &&
+      (input.open.includes(PANEL_ID) || requested.has(requestKey(ctx, input.session)))
+        ? [tab]
+        : [],
     render: (props) => <OutlineView {...props} />,
+    close: (props) => {
+      requested.delete(requestKey(ctx, props.session))
+    },
   })
 
-  return { enabled, toggle }
+  return { enabled, toggle, open }
 }
 

@@ -1,5 +1,6 @@
 import { SettingsPage, usePlugin, type SetupContext } from "@opencode/plugin/gui"
 import type { definition } from "./definition.js"
+import { requestOutlineOpen } from "./outline.js"
 
 type Ctx = SetupContext<typeof definition>
 
@@ -99,6 +100,21 @@ function Settings() {
               prefs.update((draft) => {
                 draft.outline = enabled
               })
+
+              if (!enabled) return
+
+              const session = ctx.sessions.current()
+              ctx.toast.show({
+                title: ctx.t("settings.outline.on"),
+                description: session
+                  ? ctx.t("settings.outline.openedDesc")
+                  : ctx.t("settings.outline.onDesc"),
+                variant: "default",
+              })
+
+              if (session) {
+                requestOutlineOpen(ctx, session)
+              }
             }}
           />
           {ctx.t("settings.outline")}

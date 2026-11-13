@@ -84,7 +84,7 @@ const ctx = {
       return { dismiss: () => {} }
     },
   },
-  sessions: { current: () => ({ id: "ses_test", directory: "D:/example-project" }) },
+  sessions: { current: () => ({ id: "ses_test", key: "ses_test", directory: "D:/example-project" }) },
   screen: { current: () => ({ composer }) },
   stores: {
     prefs: {
@@ -101,7 +101,12 @@ const ctx = {
       },
     }),
   },
-  layout: { settings: () => {}, toggle: () => {} },
+  layout: {
+    settings: () => {},
+    toggle: () => {},
+    open: () => {},
+    state: () => "closed",
+  },
   add: (token, item) => {
     const value = typeof item === "function" ? item() : item
     registered.push({ token, value })
@@ -137,15 +142,34 @@ async function main() {
     throw new Error("missing session outline panel")
   }
 
+  const menu = registered.find((entry) => entry.token === menuToken)?.value
+  if (!menu || menu.id !== "outline" || menu.menu !== "session.panel") {
+    throw new Error("missing session outline menu item")
+  }
+
   const panelInput = { session: { key: "ses_test", id: "ses_test" }, screen: {}, open: [] }
   if (panel.list(panelInput).length !== 0) throw new Error("outline should be off by default")
 
   prefs.outline = true
-  const outlineTabs = panel.list(panelInput)
-  if (outlineTabs.length !== 1 || outlineTabs[0].id !== "outline") {
-    throw new Error("outline panel did not list its tab once enabled")
+  if (panel.list(panelInput).length !== 0) {
+    throw new Error("outline should only list a stored tab")
   }
+
+  const outlineTabs = panel.list({ ...panelInput, open: ["outline"] })
+  if (outlineTabs.length !== 1 || outlineTabs[0].id !== "outline") {
+    throw new Error("outline panel did not list its stored tab once enabled")
+  }
+
+  // The + menu must be able to open the tab before the host stores its id.
+  menu.run()
+  if (panel.list({ ...panelInput, open: [] }).length !== 1) {
+    throw new Error("outline menu item did not request the tab")
+  }
+
   prefs.outline = false
+  if (panel.list({ ...panelInput, open: ["outline"] }).length !== 0) {
+    throw new Error("disabling the outline should hide its tab")
+  }
 
   await command("expand").run()
   await tick()

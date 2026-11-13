@@ -5,6 +5,7 @@
 - Add an experimental **session outline** panel: user messages on the right, click to scroll, active entry highlight, load-earlier and jump-to-latest controls.
 - Add the `outline` option and a settings toggle; it is off by default.
 - Add the `prompt-expand.outline` command and a side panel `+` menu entry.
+- Enabling the outline opens its tab immediately; the `+` menu entry and command work before the host stores the tab id, and closing the tab keeps it closed.
 - Message lookup uses the timeline's `data-message-id` rows and `message-<id>` anchors; a miss shows a toast instead of guessing.
 - Add tests for title extraction, outline building, and active-row selection.
 
